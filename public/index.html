@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Role Based App</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f4f4f9;
+      padding: 20px;
+    }
+
+    h2 {
+      color: #333;
+    }
+
+    input, button {
+      padding: 10px;
+      margin: 5px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+    }
+
+    button {
+      background-color: #4CAF50;
+      color: white;
+      cursor: pointer;
+    }
+
+    #dlt{
+        background-color: #d91b1b;
+        color: white;
+        cursor: pointer;
+
+    }
+
+    button:hover {
+      background-color: #4575a0;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+      background-color: #fff;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    th, td {
+      padding: 12px;
+      text-align: left;
+      border-bottom: 1px solid #ddd;
+    }
+
+    th {
+      background-color: #f0f0f0;
+    }
+
+    .section {
+      margin-top: 30px;
+    }
+
+    #loginStatus {
+      color: #d9534f;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+
+  <h2 id="h2">Login / Register</h2>
+  <h3 id="welcomeUser" class="hidden">Welcome, <span id="loggedUsername"></span>!</h3>
+  <input id="username" placeholder="Username" />
+  <input id="password" placeholder="Password" type="password" />
+  <!-- <input id="email" placeholder="Email only for registration" /> -->
+  <button id="login" onclick="login()">Login</button>
+  <button id="logout" class="hidden" onclick="logout()">Logout</button>
+  <button id="register" onclick="register()">Register</button>
+
+  <p id="loginStatus"></p>
+
+  <div id="adminSection" class="hidden section">
+    <h2>Admin Users</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Username</th>
+          <th>Role</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="adminTable"></tbody>
+    </table>
+
+    <h2>Regular Users</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Username</th>
+          <th>Role</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="userTable"></tbody>
+    </table>
+  </div>
+
+  <div id="userSection" class="hidden section">
+    <h2>Hello User 👋, you can just stay and stare 😄</h2>
+  </div>
+
+  <script>
+    window.onload = function () {
+  token = localStorage.getItem('token');
+  if (token) {
+    const decoded = JSON.parse(atob(token.split('.')[1]));
+    isAdmin = decoded.role === 'admin';
+    isUser = decoded.role === 'user';
+
+    document.getElementById('login').classList.add('hidden');
+    document.getElementById('register').classList.add('hidden');
+    document.getElementById('logout').classList.remove('hidden');
+    document.getElementById('h2').classList.add('hidden');
+    document.getElementById('welcomeUser').classList.remove('hidden');
+    document.getElementById('loggedUsername').innerText = decoded.username;
+
+
+    document.getElementById('username').value = '';
+    document.getElementById('password').value = '';
+    // document.getElementById('email').value = '';
+
+    document.getElementById('loginStatus').innerText = `Welcome ${decoded.username || 'User'}`;
+
+    if (isAdmin) {
+      document.getElementById('adminSection').classList.remove('hidden');
+      fetchUsers();
+    } else if (isUser) {
+      document.getElementById('userSection').classList.remove('hidden');
+    }
+  }
+}
+
+
+
+
+
+
+    async function register() {
+      const username = document.getElementById('username').value;
+    //   const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+
+      try {
+        const res = await fetch('http://localhost:3000/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username,  password })
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+          const message = data.message || 'User/Admin Registered';
+          document.getElementById('loginStatus').innerText = message;
+        //   email='';
+          document.getElementById('username').value = '';
+          document.getElementById('password').value = '';
+        } else {
+          const errorMsg = data.message || 'Registration failed';
+          document.getElementById('loginStatus').innerText = errorMsg;
+        }
+      } catch (error) {
+        document.getElementById('loginStatus').innerText = 'Something went wrong!';
+        console.error('Registration error:', error);
+      }
+    }
+
+    async function login() {
+      const username = document.getElementById('username').value;
+      const password = document.getElementById('password').value;
+      const button = document.getElementById('login');
+      const regbutton = document.getElementById('register');
+
+      try {
+        const res = await fetch('http://localhost:3000/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          const message = data.message || 'Invalid credentials: Login failed';
+          document.getElementById('loginStatus').innerText = message;
+          return;
+        }
+
+        token = data.token;
+        localStorage.setItem('token', token);
+        document.getElementById('loginStatus').innerText = 'Logged in!';
+        document.getElementById('username').value = '';
+        document.getElementById('password').value = '';
+        const decoded = JSON.parse(atob(token.split('.')[1]));
+        console.log(decoded);
+        isAdmin = decoded.role === 'admin';
+        const isUser = decoded.role === 'user';
+
+        document.getElementById('loggedUsername').innerText = decoded.username;
+        document.getElementById('logout').classList.remove('hidden');
+        document.getElementById('h2').classList.add('hidden');
+        document.getElementById('welcomeUser').classList.remove('hidden');
+        button.classList.add('hidden');
+        regbutton.classList.add('hidden');
+
+        if (isAdmin) {
+          document.getElementById('adminSection').classList.remove('hidden');
+          fetchUsers();
+        }
+
+        if (isUser) {
+          document.getElementById('userSection').classList.remove('hidden');
+        }
+
+      } catch (error) {
+        document.getElementById('loginStatus').innerText = 'Something went wrong!';
+        console.error('Login error:', error);
+      }
+    }
+
+    function logout() {
+      token = '';
+      isAdmin = false;
+      localStorage.removeItem('token');
+      window.location.href = '/';
+      document.getElementById('adminSection').classList.add('hidden');
+      document.getElementById('userSection').classList.add('hidden');
+      document.getElementById('loginStatus').innerText = 'Logged out!';
+      document.getElementById('login').classList.remove('hidden');
+      document.getElementById('register').classList.remove('hidden');
+    }
+
+    async function fetchUsers() {
+      const res = await fetch('http://localhost:3000/api/users', {
+        headers: {
+          Authorization: 'Bearer ' + token
+        }
+      });
+
+      const users = await res.json();
+      const adminTable = document.getElementById('adminTable');
+      const userTable = document.getElementById('userTable');
+
+      adminTable.innerHTML = '';
+      userTable.innerHTML = '';
+
+      users.forEach(user => {
+        const tradmin = document.createElement('tr');
+        tradmin.innerHTML = `
+          <td>${user.username}</td>
+          <td>${user.role}</td>
+          <td>
+            <button onclick="updateRole('${user._id}', 'user')">Make User</button>
+            <button id="dlt" onclick="deleteUser('${user._id}')">Delete Admin</button>
+          </td>
+        `;
+        const truser = document.createElement('tr');
+        truser.innerHTML = `
+          <td>${user.username}</td>
+          <td>${user.role}</td>
+          <td>
+            <button onclick="updateRole('${user._id}', 'admin')">Make Admin</button>
+            <button id="dlt" onclick="deleteUser('${user._id}')">Delete User</button>
+
+            
+          </td>
+        `;
+
+        if (user.role === 'admin') {
+            
+          adminTable.appendChild(tradmin);
+        } else {
+          userTable.appendChild(truser);
+        }
+      });
+    }
+
+    async function deleteUser(userId) {
+        console.log("Trying to delete user with id:", userId);
+
+        const res = await fetch(`http://localhost:3000/api/users/${userId}`, {
+        method: 'DELETE',
+        headers: {
+        
+          Authorization: 'Bearer ' + token
+        },
+        
+      });
+            // Try to safely parse the response
+            const data = await res.json().catch(() => ({}));
+
+        if (!res.ok) {
+        // Show error from backend or generic fallback
+        alert(data.message || `Failed to delete user (${res.status})`);
+        return;
+        }
+
+    alert('User deleted successfully');
+      // Refresh tables
+      fetchUsers();
+    }
+
+    async function updateRole(userId, role) {
+        const res = await fetch(`http://localhost:3000/api/users/${userId}/role`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer ' + token
+        },
+        body: JSON.stringify({ role })
+      });
+      const data = await res.json().catch(() => ({}));
+
+        if (!res.ok) {
+        // Show error from backend or generic fallback
+        alert(data.message || `Failed to Update Role (${res.status})`);
+        return;
+        }
+
+    alert('User Role Updated successfully');
+      // Refresh tables
+      fetchUsers();
+    }
+  </script>
+</body>
+</html>
